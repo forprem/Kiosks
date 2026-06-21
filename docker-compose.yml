@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kiosk
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: kiosk_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiosk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://kiosk:localdev@postgres:5432/kiosk_db
+      NODE_ENV: development
+      PORT: 4000
+      ADMIN_TOKEN: dev-admin-token
+      FRONTEND_URL: http://localhost:5173
+      STRIPE_SECRET_KEY: sk_test_
+      STRIPE_WEBHOOK_SECRET: whsec_
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+
+volumes:
+  postgres_data:

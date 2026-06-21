@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum KioskStatus {
+  AVAILABLE
+  BOOKED
+  INACTIVE
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model Mall {
+  id          String   @id @default(cuid())
+  name        String
+  city        String
+  mapImageUrl String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  kiosks Kiosk[]
+}
+
+model Kiosk {
+  id            String      @id @default(cuid())
+  mallId        String
+  code          String
+  sizeSqm       Float?
+  mapX          Float
+  mapY          Float
+  pricePerYear  Int
+  status        KioskStatus @default(AVAILABLE)
+  activeFrom    DateTime?
+  activeUntil   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  mall     Mall      @relation(fields: [mallId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([mallId, code])
+  @@index([mallId])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  kioskId        String
+  customerName   String
+  customerEmail  String
+  startDate      DateTime
+  endDate        DateTime
+  yearlyPrice    Int
+  status         BookingStatus @default(PENDING_PAYMENT)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  kiosk    Kiosk      @relation(fields: [kioskId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@index([kioskId])
+  @@index([customerEmail])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  bookingId         String
+  amount            Int
+  currency          String        @default("usd")
+  status            PaymentStatus @default(PENDING)
+  provider          String        @default("stripe")
+  providerSessionId String?
+  providerRef       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
