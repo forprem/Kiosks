@@ -26,6 +26,10 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "kiosk-booking-backend" });
 });
 
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true, service: "kiosk-booking-backend" });
+});
+
 app.get("/api/malls", async (_req, res) => {
   const malls = await prisma.mall.findMany({
     where: { isActive: true },
