@@ -35,7 +35,7 @@ jobs:
 
       - name: Enable required APIs
         run: |
-          gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+          gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com || true
 
       - name: Deploy to Cloud Run from source
         uses: google-github-actions/deploy-cloudrun@v2
