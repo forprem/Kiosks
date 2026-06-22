@@ -20,6 +20,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Authenticate for preflight checks
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KIOSKS_500101 }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: kiosks-500101
+
+      - name: Preflight permission checks
+        run: |
+          set -euo pipefail
+
+          echo "Active account: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
+
+          TOKEN="$(gcloud auth print-access-token)"
+
+          echo "Checking firebase.projects.get..."
+          curl -fsS \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://firebase.googleapis.com/v1beta1/projects/kiosks-500101" >/dev/null
+
+          echo "Checking firebasehosting.sites.update/read access..."
+          curl -fsS \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://firebasehosting.googleapis.com/v1beta1/projects/kiosks-500101/sites/kiosks-500101" >/dev/null
+
+          echo "Checking run.services.get on rewrite target..."
+          curl -fsS \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://run.googleapis.com/v2/projects/kiosks-500101/locations/us-central1/services/kiosk-backend" >/dev/null
+
+          echo "Preflight checks passed."
+
       - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
@@ -37,6 +72,6 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KIOSKS_500101 }}
           channelId: live
           projectId: kiosks-500101
