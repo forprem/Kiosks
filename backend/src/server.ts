@@ -318,6 +318,72 @@ app.get("/api/bookings/:bookingId", async (req, res) => {
   return res.json(booking);
 });
 
+app.post("/api/webhooks/stripe", async (req, res) => {
+  if (!stripe || !config.stripeWebhookSecret) {
+    return res.status(400).json({ error: "Stripe not configured" });
+  }
+
+  const signature = req.headers["stripe-signature"] as string;
+  if (!signature) {
+    return res.status(400).json({ error: "Missing stripe-signature header" });
+  }
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      JSON.stringify(req.body),
+      signature,
+      config.stripeWebhookSecret
+    );
+  } catch (error) {
+    console.error("Webhook signature verification failed:", error);
+    return res.status(400).json({ error: "Invalid signature" });
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as any;
+    const bookingId = session.metadata?.bookingId;
+
+    if (!bookingId) {
+      return res.status(400).json({ error: "No bookingId in metadata" });
+    }
+
+    try {
+      const payment = await prisma.payment.findFirst({
+        where: { providerSessionId: session.id }
+      });
+
+      if (!payment) {
+        console.warn(`Payment not found for session ${session.id}`);
+        return res.status(200).json({ received: true });
+      }
+
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.SUCCEEDED }
+      });
+
+      const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+      if (booking) {
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.CONFIRMED }
+        });
+
+        await prisma.kiosk.update({
+          where: { id: booking.kioskId },
+          data: { status: KioskStatus.BOOKED }
+        });
+      }
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      return res.status(500).json({ error: "Failed to process webhook" });
+    }
+  }
+
+  return res.status(200).json({ received: true });
+});
+
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(error);
   return res.status(500).json({ error: "Internal server error" });
