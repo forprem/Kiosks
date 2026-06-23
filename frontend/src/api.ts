@@ -134,3 +134,19 @@ export async function adminUpdateKiosk(
   });
   return parseJson<Kiosk>(response);
 }
+
+export async function adminDeleteMall(adminToken: string, mallId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/malls/${encodeURIComponent(mallId)}`, {
+    method: "DELETE",
+    headers: adminHeaders(adminToken)
+  });
+  await parseJson<{ ok: true }>(response);
+}
+
+export async function adminDeleteKiosk(adminToken: string, kioskId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/kiosks/${encodeURIComponent(kioskId)}`, {
+    method: "DELETE",
+    headers: adminHeaders(adminToken)
+  });
+  await parseJson<{ ok: true }>(response);
+}
