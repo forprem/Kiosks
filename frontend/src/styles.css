@@ -213,6 +213,51 @@ dd.inactive {
   color: #0b6ef6;
 }
 
+.listContainer {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.listItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8f9fb;
+  border: 1px solid #e0e5ed;
+  border-radius: 10px;
+}
+
+.itemInfo {
+  flex: 1;
+  font-size: 14px;
+  color: #43576a;
+}
+
+.deleteBtn {
+  padding: 6px 12px;
+  border: 1px solid #e74c3c;
+  border-radius: 6px;
+  background: #fff;
+  color: #e74c3c;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
