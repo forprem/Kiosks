@@ -233,6 +233,42 @@ app.patch("/api/admin/kiosks/:kioskId", requireAdmin, async (req, res) => {
   return res.json(kiosk);
 });
 
+app.delete("/api/admin/malls/:mallId", requireAdmin, async (req, res) => {
+  try {
+    // Delete all kiosks in this mall first
+    await prisma.kiosk.deleteMany({
+      where: { mallId: req.params.mallId }
+    });
+
+    // Then delete the mall
+    const mall = await prisma.mall.delete({
+      where: { id: req.params.mallId }
+    });
+
+    return res.json({ ok: true, message: "Mall and all its kiosks deleted", mall });
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ error: "Mall not found" });
+    }
+    throw error;
+  }
+});
+
+app.delete("/api/admin/kiosks/:kioskId", requireAdmin, async (req, res) => {
+  try {
+    const kiosk = await prisma.kiosk.delete({
+      where: { id: req.params.kioskId }
+    });
+
+    return res.json({ ok: true, message: "Kiosk deleted", kiosk });
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ error: "Kiosk not found" });
+    }
+    throw error;
+  }
+});
+
 app.post("/api/bookings", async (req, res) => {
   const schema = z.object({
     kioskId: z.string().min(1),
