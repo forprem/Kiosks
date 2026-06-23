@@ -19,7 +19,89 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
   return next();
 }
 
+async function stripeWebhookHandler(req: express.Request, res: express.Response) {
+  if (!stripe || !config.stripeWebhookSecret) {
+    console.error("Stripe not configured");
+    return res.status(400).json({ error: "Stripe not configured" });
+  }
+
+  const signature = req.headers["stripe-signature"] as string;
+  if (!signature) {
+    console.error("Missing stripe-signature header");
+    return res.status(400).json({ error: "Missing stripe-signature header" });
+  }
+
+  let event;
+  try {
+    // req.body is a Buffer when using express.raw()
+    event = stripe.webhooks.constructEvent(
+      req.body as Buffer,
+      signature,
+      config.stripeWebhookSecret
+    );
+    console.log("✓ Webhook verified:", event.type);
+  } catch (error) {
+    console.error("Webhook signature verification failed:", error);
+    return res.status(400).json({ error: "Invalid signature" });
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as any;
+    const bookingId = session.metadata?.bookingId;
+
+    console.log("Processing checkout.session.completed, bookingId:", bookingId, "sessionId:", session.id);
+
+    if (!bookingId) {
+      console.warn("No bookingId in metadata");
+      return res.status(400).json({ error: "No bookingId in metadata" });
+    }
+
+    try {
+      const payment = await prisma.payment.findFirst({
+        where: { providerSessionId: session.id }
+      });
+
+      if (!payment) {
+        console.warn(`Payment not found for session ${session.id}`);
+        return res.status(200).json({ received: true });
+      }
+
+      console.log("Updating payment", payment.id, "to SUCCEEDED");
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.SUCCEEDED }
+      });
+
+      const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+      if (booking) {
+        console.log("Updating booking", bookingId, "to CONFIRMED");
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.CONFIRMED }
+        });
+
+        console.log("Updating kiosk", booking.kioskId, "to BOOKED");
+        await prisma.kiosk.update({
+          where: { id: booking.kioskId },
+          data: { status: KioskStatus.BOOKED }
+        });
+
+        console.log("✓ Webhook processed successfully");
+      }
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      return res.status(500).json({ error: "Failed to process webhook" });
+    }
+  }
+
+  return res.status(200).json({ received: true });
+}
+
 app.use(cors());
+
+// Raw body for Stripe webhook signature verification (must be before express.json())
+app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhookHandler);
+
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
@@ -316,72 +398,6 @@ app.get("/api/bookings/:bookingId", async (req, res) => {
   }
 
   return res.json(booking);
-});
-
-app.post("/api/webhooks/stripe", async (req, res) => {
-  if (!stripe || !config.stripeWebhookSecret) {
-    return res.status(400).json({ error: "Stripe not configured" });
-  }
-
-  const signature = req.headers["stripe-signature"] as string;
-  if (!signature) {
-    return res.status(400).json({ error: "Missing stripe-signature header" });
-  }
-
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      JSON.stringify(req.body),
-      signature,
-      config.stripeWebhookSecret
-    );
-  } catch (error) {
-    console.error("Webhook signature verification failed:", error);
-    return res.status(400).json({ error: "Invalid signature" });
-  }
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as any;
-    const bookingId = session.metadata?.bookingId;
-
-    if (!bookingId) {
-      return res.status(400).json({ error: "No bookingId in metadata" });
-    }
-
-    try {
-      const payment = await prisma.payment.findFirst({
-        where: { providerSessionId: session.id }
-      });
-
-      if (!payment) {
-        console.warn(`Payment not found for session ${session.id}`);
-        return res.status(200).json({ received: true });
-      }
-
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.SUCCEEDED }
-      });
-
-      const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-      if (booking) {
-        await prisma.booking.update({
-          where: { id: bookingId },
-          data: { status: BookingStatus.CONFIRMED }
-        });
-
-        await prisma.kiosk.update({
-          where: { id: booking.kioskId },
-          data: { status: KioskStatus.BOOKED }
-        });
-      }
-    } catch (error) {
-      console.error("Error processing webhook:", error);
-      return res.status(500).json({ error: "Failed to process webhook" });
-    }
-  }
-
-  return res.status(200).json({ received: true });
 });
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
