@@ -51,11 +51,24 @@ model Kiosk {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  mall     Mall      @relation(fields: [mallId], references: [id], onDelete: Cascade)
+  mall     Mall         @relation(fields: [mallId], references: [id], onDelete: Cascade)
   bookings Booking[]
+  images   KioskImage[]
 
   @@unique([mallId, code])
   @@index([mallId])
+}
+
+model KioskImage {
+  id        String   @id @default(cuid())
+  kioskId   String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  kiosk Kiosk @relation(fields: [kioskId], references: [id], onDelete: Cascade)
+
+  @@index([kioskId])
 }
 
 model Booking {
