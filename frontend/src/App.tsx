@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   adminCreateKiosk,
   adminCreateMall,
+  adminDeleteKiosk,
+  adminDeleteMall,
   adminUpdateKiosk,
   confirmMockPayment,
   createBooking,
@@ -162,6 +164,36 @@ export default function App() {
       setNotice("Kiosk updated successfully.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Failed to update kiosk");
+    }
+  }
+
+  async function handleDeleteMall(mallId: string) {
+    if (!confirm("Are you sure you want to delete this mall and all its kiosks?")) {
+      return;
+    }
+    setNotice("");
+    try {
+      await adminDeleteMall(adminToken, mallId);
+      await loadMalls();
+      setNotice("Mall deleted successfully.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Failed to delete mall");
+    }
+  }
+
+  async function handleDeleteKiosk(kioskId: string) {
+    if (!confirm("Are you sure you want to delete this kiosk?")) {
+      return;
+    }
+    setNotice("");
+    try {
+      await adminDeleteKiosk(adminToken, kioskId);
+      if (selectedMallId) {
+        await loadKiosks(selectedMallId);
+      }
+      setNotice("Kiosk deleted successfully.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Failed to delete kiosk");
     }
   }
 
@@ -436,6 +468,57 @@ export default function App() {
               </>
             )}
           </section>
+
+          <section className="detailCard">
+            <h2>Malls</h2>
+            {malls.length === 0 ? (
+              <p>No malls available.</p>
+            ) : (
+              <div className="listContainer">
+                {malls.map((mall) => (
+                  <div key={mall.id} className="listItem">
+                    <div className="itemInfo">
+                      <strong>{mall.name}</strong> ({mall.city})
+                    </div>
+                    <button
+                      className="deleteBtn"
+                      onClick={() => void handleDeleteMall(mall.id)}
+                      disabled={adminToken.trim().length < 3}
+                      title="Delete mall and all its kiosks"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="detailCard">
+            <h2>Kiosks</h2>
+            {!selectedMallId || kiosks.length === 0 ? (
+              <p>No kiosks available. Select a mall first.</p>
+            ) : (
+              <div className="listContainer">
+                {kiosks.map((kiosk) => (
+                  <div key={kiosk.id} className="listItem">
+                    <div className="itemInfo">
+                      <strong>{kiosk.code}</strong> - ${kiosk.pricePerYear.toLocaleString()} - {kiosk.status}
+                    </div>
+                    <button
+                      className="deleteBtn"
+                      onClick={() => void handleDeleteKiosk(kiosk.id)}
+                      disabled={adminToken.trim().length < 3}
+                      title="Delete kiosk"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           {notice ? <p className="message">{notice}</p> : null}
         </main>
       )}
