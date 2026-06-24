@@ -8,13 +8,13 @@ COPY package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
 RUN npm rebuild @prisma/client
 
-COPY . .
 COPY prisma ./prisma
 COPY src ./src
 COPY tsconfig.json ./tsconfig.json
 
 RUN node ./node_modules/prisma/build/index.js generate --schema=./prisma/schema.prisma
 RUN npm run build
+RUN npm prune --omit=dev
 
 FROM node:20-alpine
 
@@ -23,10 +23,8 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
-
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 8080
 
