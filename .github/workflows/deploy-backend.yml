@@ -37,6 +37,14 @@ jobs:
         run: |
           gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com || true
 
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd backend
+          npm install
+          npx prisma db push
+
       - name: Deploy to Cloud Run from source
         uses: google-github-actions/deploy-cloudrun@v2
         with:
