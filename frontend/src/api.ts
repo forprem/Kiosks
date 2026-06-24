@@ -8,6 +8,14 @@ export type Mall = {
   isActive: boolean;
 };
 
+export type KioskImage = {
+  id: string;
+  kioskId: string;
+  url: string;
+  sortOrder: number;
+  createdAt: string;
+};
+
 export type Kiosk = {
   id: string;
   mallId: string;
@@ -16,6 +24,7 @@ export type Kiosk = {
   mapY: number;
   pricePerYear: number;
   status: "AVAILABLE" | "BOOKED" | "INACTIVE";
+  images: KioskImage[];
 };
 
 export type Booking = {
@@ -107,6 +116,7 @@ export async function adminCreateKiosk(
     mapY: number;
     pricePerYear: number;
     status: "AVAILABLE" | "BOOKED" | "INACTIVE";
+    imageUrls?: string[];
   }
 ): Promise<Kiosk> {
   const response = await fetch(`${API_BASE_URL}/api/admin/kiosks`, {
@@ -125,6 +135,7 @@ export async function adminUpdateKiosk(
     mapY?: number;
     pricePerYear?: number;
     status?: "AVAILABLE" | "BOOKED" | "INACTIVE";
+    imageUrls?: string[];
   }
 ): Promise<Kiosk> {
   const response = await fetch(`${API_BASE_URL}/api/admin/kiosks/${encodeURIComponent(kioskId)}`, {
