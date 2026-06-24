@@ -177,6 +177,11 @@ app.get("/api/kiosks", async (req, res) => {
 
   const kiosks = await prisma.kiosk.findMany({
     where: { mallId: parsed.data.mallId },
+    include: {
+      images: {
+        orderBy: { sortOrder: "asc" }
+      }
+    },
     orderBy: { code: "asc" }
   });
   return res.json(kiosks);
@@ -190,7 +195,8 @@ app.post("/api/admin/kiosks", requireAdmin, async (req, res) => {
     mapY: z.number().min(0).max(100),
     sizeSqm: z.number().positive().optional(),
     pricePerYear: z.number().int().positive(),
-    status: z.nativeEnum(KioskStatus).optional()
+    status: z.nativeEnum(KioskStatus).optional(),
+    imageUrls: z.array(z.string().url()).optional()
   });
 
   const parsed = schema.safeParse(req.body);
@@ -206,7 +212,22 @@ app.post("/api/admin/kiosks", requireAdmin, async (req, res) => {
       mapY: parsed.data.mapY,
       sizeSqm: parsed.data.sizeSqm,
       pricePerYear: parsed.data.pricePerYear,
-      status: parsed.data.status ?? KioskStatus.AVAILABLE
+      status: parsed.data.status ?? KioskStatus.AVAILABLE,
+      ...(parsed.data.imageUrls && parsed.data.imageUrls.length > 0
+        ? {
+            images: {
+              create: parsed.data.imageUrls.map((url, index) => ({
+                url,
+                sortOrder: index
+              }))
+            }
+          }
+        : {})
+    },
+    include: {
+      images: {
+        orderBy: { sortOrder: "asc" }
+      }
     }
   });
 
@@ -219,18 +240,102 @@ app.patch("/api/admin/kiosks/:kioskId", requireAdmin, async (req, res) => {
     mapY: z.number().min(0).max(100).optional(),
     sizeSqm: z.number().positive().nullable().optional(),
     pricePerYear: z.number().int().positive().optional(),
-    status: z.nativeEnum(KioskStatus).optional()
+    status: z.nativeEnum(KioskStatus).optional(),
+    imageUrls: z.array(z.string().url()).optional()
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
-  const kiosk = await prisma.kiosk.update({
-    where: { id: req.params.kioskId },
-    data: parsed.data
+  const { imageUrls, ...kioskFields } = parsed.data;
+
+  const kiosk = await prisma.$transaction(async (tx) => {
+    if (imageUrls !== undefined) {
+      await tx.kioskImage.deleteMany({
+        where: { kioskId: req.params.kioskId }
+      });
+    }
+
+    return tx.kiosk.update({
+      where: { id: req.params.kioskId },
+      data: kioskFields,
+      include: {
+        images: {
+          orderBy: { sortOrder: "asc" }
+        }
+      }
+    });
   });
-  return res.json(kiosk);
+
+  if (imageUrls !== undefined && imageUrls.length > 0) {
+    await prisma.kioskImage.createMany({
+      data: imageUrls.map((url, index) => ({
+        kioskId: req.params.kioskId,
+        url,
+        sortOrder: index
+      }))
+    });
+  }
+
+  const kioskWithImages = await prisma.kiosk.findUnique({
+    where: { id: req.params.kioskId },
+    include: {
+      images: {
+        orderBy: { sortOrder: "asc" }
+      }
+    }
+  });
+
+  if (!kioskWithImages) {
+    return res.status(404).json({ error: "Kiosk not found" });
+  }
+  return res.json(kioskWithImages);
+});
+
+app.post("/api/admin/kiosks/:kioskId/images", requireAdmin, async (req, res) => {
+  const schema = z.object({
+    url: z.string().url(),
+    sortOrder: z.number().int().min(0).optional()
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+  }
+
+  const kiosk = await prisma.kiosk.findUnique({ where: { id: req.params.kioskId } });
+  if (!kiosk) {
+    return res.status(404).json({ error: "Kiosk not found" });
+  }
+
+  const currentCount = await prisma.kioskImage.count({
+    where: { kioskId: req.params.kioskId }
+  });
+
+  const image = await prisma.kioskImage.create({
+    data: {
+      kioskId: req.params.kioskId,
+      url: parsed.data.url,
+      sortOrder: parsed.data.sortOrder ?? currentCount
+    }
+  });
+
+  return res.status(201).json(image);
+});
+
+app.delete("/api/admin/kiosks/:kioskId/images/:imageId", requireAdmin, async (req, res) => {
+  const result = await prisma.kioskImage.deleteMany({
+    where: {
+      id: req.params.imageId,
+      kioskId: req.params.kioskId
+    }
+  });
+
+  if (result.count === 0) {
+    return res.status(404).json({ error: "Image not found" });
+  }
+
+  return res.json({ ok: true });
 });
 
 app.delete("/api/admin/malls/:mallId", requireAdmin, async (req, res) => {
