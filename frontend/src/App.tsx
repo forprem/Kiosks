@@ -44,6 +44,7 @@ export default function App() {
   const [newKioskStatus, setNewKioskStatus] = useState<Kiosk["status"]>("AVAILABLE");
   const [newKioskImageUrlsInput, setNewKioskImageUrlsInput] = useState<string>("");
   const [selectedKioskImageUrlsInput, setSelectedKioskImageUrlsInput] = useState<string>("");
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
 
   async function loadMalls() {
     const data = await getMalls();
@@ -110,10 +111,14 @@ export default function App() {
   useEffect(() => {
     if (!selected) {
       setSelectedKioskImageUrlsInput("");
+      setSelectedImageIndex(0);
       return;
     }
     setSelectedKioskImageUrlsInput(selected.images.map((image) => image.url).join("\n"));
+    setSelectedImageIndex(0);
   }, [selected]);
+
+  const activeImage = selected?.images[selectedImageIndex] ?? selected?.images[0] ?? null;
 
   function parseImageUrls(input: string): string[] {
     return input
@@ -331,10 +336,24 @@ export default function App() {
                 </dl>
 
                 {selected.images.length > 0 ? (
-                  <div className="photoGallery">
-                    {selected.images.map((image) => (
-                      <img key={image.id} src={image.url} alt={`${selected.code} kiosk`} loading="lazy" />
-                    ))}
+                  <div className="photoCarousel">
+                    {activeImage ? (
+                      <div className="photoStage">
+                        <img src={activeImage.url} alt={`${selected.code} kiosk view ${selectedImageIndex + 1}`} loading="lazy" />
+                      </div>
+                    ) : null}
+                    <div className="photoDots" aria-label="Kiosk image selection">
+                      {selected.images.map((image, index) => (
+                        <button
+                          key={image.id}
+                          type="button"
+                          className={`photoDot ${index === selectedImageIndex ? "active" : ""}`}
+                          aria-label={`Show image ${index + 1}`}
+                          aria-pressed={index === selectedImageIndex}
+                          onClick={() => setSelectedImageIndex(index)}
+                        />
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <p className="note">No kiosk photos available yet.</p>
