@@ -225,20 +225,50 @@ dd.inactive {
   color: #0b6ef6;
 }
 
-.photoGallery {
+.photoCarousel {
   margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
 }
 
-.photoGallery img {
-  width: 100%;
-  height: 90px;
-  object-fit: cover;
-  border-radius: 10px;
+.photoStage {
+  overflow: hidden;
+  border-radius: 16px;
   border: 1px solid #d7e0ea;
-  background: #f7fafc;
+  background: linear-gradient(180deg, #f8fbff, #eef4fa);
+  min-height: 260px;
+}
+
+.photoStage img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  display: block;
+}
+
+.photoDots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.photoDot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #b5c3d2;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.photoDot:hover {
+  transform: scale(1.15);
+}
+
+.photoDot.active {
+  background: #0b6ef6;
+  transform: scale(1.2);
 }
 
 .listContainer {
@@ -293,5 +323,11 @@ dd.inactive {
 
   .mapArea {
     min-height: 320px;
+  }
+
+  .photoStage,
+  .photoStage img {
+    min-height: 220px;
+    height: 220px;
   }
 }
