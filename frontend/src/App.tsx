@@ -31,11 +31,14 @@ export default function App() {
   const [adminToken, setAdminToken] = useState<string>("");
   const [newMallName, setNewMallName] = useState<string>("");
   const [newMallCity, setNewMallCity] = useState<string>("");
+  const [newMallMapImageUrl, setNewMallMapImageUrl] = useState<string>("");
   const [newKioskCode, setNewKioskCode] = useState<string>("");
   const [newKioskPrice, setNewKioskPrice] = useState<number>(12000);
   const [newKioskX, setNewKioskX] = useState<number>(50);
   const [newKioskY, setNewKioskY] = useState<number>(50);
   const [newKioskStatus, setNewKioskStatus] = useState<Kiosk["status"]>("AVAILABLE");
+  const [newKioskImageUrlsInput, setNewKioskImageUrlsInput] = useState<string>("");
+  const [selectedKioskImageUrlsInput, setSelectedKioskImageUrlsInput] = useState<string>("");
 
   async function loadMalls() {
     const data = await getMalls();
@@ -47,9 +50,10 @@ export default function App() {
 
   async function loadKiosks(mallId: string) {
     const data = await getKiosks(mallId);
-    setKiosks(data);
-    if (data.length > 0) {
-      setSelectedId((prev) => (data.some((item) => item.id === prev) ? prev : data[0].id));
+    const normalized = data.map((kiosk) => ({ ...kiosk, images: kiosk.images ?? [] }));
+    setKiosks(normalized);
+    if (normalized.length > 0) {
+      setSelectedId((prev) => (normalized.some((item) => item.id === prev) ? prev : normalized[0].id));
     } else {
       setSelectedId("");
     }
@@ -83,6 +87,26 @@ export default function App() {
     [selectedId, kiosks]
   );
 
+  const selectedMall = useMemo(
+    () => malls.find((mall) => mall.id === selectedMallId) ?? null,
+    [malls, selectedMallId]
+  );
+
+  useEffect(() => {
+    if (!selected) {
+      setSelectedKioskImageUrlsInput("");
+      return;
+    }
+    setSelectedKioskImageUrlsInput(selected.images.map((image) => image.url).join("\n"));
+  }, [selected]);
+
+  function parseImageUrls(input: string): string[] {
+    return input
+      .split(/\n|,/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
   async function handleBook() {
     if (!selected) {
       return;
@@ -115,9 +139,14 @@ export default function App() {
   async function handleCreateMall() {
     setNotice("");
     try {
-      const mall = await adminCreateMall(adminToken, { name: newMallName, city: newMallCity });
+      const mall = await adminCreateMall(adminToken, {
+        name: newMallName,
+        city: newMallCity,
+        mapImageUrl: newMallMapImageUrl.trim() || null
+      });
       setNewMallName("");
       setNewMallCity("");
+      setNewMallMapImageUrl("");
       await loadMalls();
       setSelectedMallId(mall.id);
       setNotice("Mall created successfully.");
@@ -138,9 +167,11 @@ export default function App() {
         mapX: newKioskX,
         mapY: newKioskY,
         pricePerYear: newKioskPrice,
-        status: newKioskStatus
+        status: newKioskStatus,
+        imageUrls: parseImageUrls(newKioskImageUrlsInput)
       });
       setNewKioskCode("");
+      setNewKioskImageUrlsInput("");
       await loadKiosks(selectedMallId);
       setNotice("Kiosk created successfully.");
     } catch (error) {
@@ -158,7 +189,8 @@ export default function App() {
         mapX: selected.mapX,
         mapY: selected.mapY,
         pricePerYear: selected.pricePerYear,
-        status: selected.status
+        status: selected.status,
+        imageUrls: parseImageUrls(selectedKioskImageUrlsInput)
       });
       await loadKiosks(selected.mallId);
       setNotice("Kiosk updated successfully.");
@@ -238,7 +270,16 @@ export default function App() {
         <main className="layout">
           <section className="mapCard">
             <h2>Mall Map</h2>
-            <div className="mapArea">
+            <div
+              className={`mapArea ${selectedMall?.mapImageUrl ? "hasMapImage" : ""}`}
+              style={
+                selectedMall?.mapImageUrl
+                  ? {
+                      backgroundImage: `url(${selectedMall.mapImageUrl})`
+                    }
+                  : undefined
+              }
+            >
               {kiosks.map((kiosk) => (
                 <button
                   key={kiosk.id}
@@ -267,6 +308,16 @@ export default function App() {
                   <dt>Price (1 year)</dt>
                   <dd>${selected.pricePerYear.toLocaleString()}</dd>
                 </dl>
+
+                {selected.images.length > 0 ? (
+                  <div className="photoGallery">
+                    {selected.images.map((image) => (
+                      <img key={image.id} src={image.url} alt={`${selected.code} kiosk`} loading="lazy" />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="note">No kiosk photos available yet.</p>
+                )}
 
                 <div className="formGrid">
                   <label>
@@ -346,6 +397,14 @@ export default function App() {
                 City
                 <input value={newMallCity} onChange={(event) => setNewMallCity(event.target.value)} />
               </label>
+              <label>
+                Map Image URL
+                <input
+                  value={newMallMapImageUrl}
+                  onChange={(event) => setNewMallMapImageUrl(event.target.value)}
+                  placeholder="https://..."
+                />
+              </label>
             </div>
             <button
               className="cta"
@@ -399,6 +458,14 @@ export default function App() {
                   <option value="BOOKED">BOOKED</option>
                   <option value="INACTIVE">INACTIVE</option>
                 </select>
+              </label>
+              <label>
+                Kiosk Image URLs (one per line)
+                <textarea
+                  value={newKioskImageUrlsInput}
+                  onChange={(event) => setNewKioskImageUrlsInput(event.target.value)}
+                  placeholder={"https://.../photo1.jpg\nhttps://.../photo2.jpg"}
+                />
               </label>
             </div>
             <button
@@ -456,6 +523,14 @@ export default function App() {
                       <option value="BOOKED">BOOKED</option>
                       <option value="INACTIVE">INACTIVE</option>
                     </select>
+                  </label>
+                  <label>
+                    Kiosk Image URLs (one per line)
+                    <textarea
+                      value={selectedKioskImageUrlsInput}
+                      onChange={(event) => setSelectedKioskImageUrlsInput(event.target.value)}
+                      placeholder={"https://.../photo1.jpg\nhttps://.../photo2.jpg"}
+                    />
                   </label>
                 </div>
                 <button
