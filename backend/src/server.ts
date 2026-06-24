@@ -19,6 +19,21 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
   return next();
 }
 
+async function cleanupExpiredPendingBookings(): Promise<number> {
+  const now = new Date();
+  const result = await prisma.booking.updateMany({
+    where: {
+      status: BookingStatus.PENDING_PAYMENT,
+      expiresAt: { lt: now }
+    },
+    data: {
+      status: BookingStatus.CANCELLED
+    }
+  });
+
+  return result.count;
+}
+
 async function stripeWebhookHandler(req: express.Request, res: express.Response) {
   if (!stripe || !config.stripeWebhookSecret) {
     console.error("Stripe not configured");
@@ -110,6 +125,39 @@ app.get("/api", (_req, res) => {
   res.json({ ok: true, service: "kiosk-booking-backend", message: "API root" });
 });
 
+app.get("/api/admin/system/booking-integrity", requireAdmin, async (_req, res) => {
+  const cleanedCount = await cleanupExpiredPendingBookings();
+  const now = new Date();
+
+  const [pendingActive, pendingExpired, confirmed, cancelled] = await Promise.all([
+    prisma.booking.count({
+      where: {
+        status: BookingStatus.PENDING_PAYMENT,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]
+      }
+    }),
+    prisma.booking.count({
+      where: {
+        status: BookingStatus.PENDING_PAYMENT,
+        expiresAt: { lte: now }
+      }
+    }),
+    prisma.booking.count({ where: { status: BookingStatus.CONFIRMED } }),
+    prisma.booking.count({ where: { status: BookingStatus.CANCELLED } })
+  ]);
+
+  return res.json({
+    ok: true,
+    cleanedExpiredPending: cleanedCount,
+    counts: {
+      pendingActive,
+      pendingExpired,
+      confirmed,
+      cancelled
+    }
+  });
+});
+
 app.get("/api/malls", async (_req, res) => {
   const malls = await prisma.mall.findMany({
     where: { isActive: true },
@@ -163,6 +211,8 @@ app.patch("/api/admin/malls/:mallId", requireAdmin, async (req, res) => {
 });
 
 app.get("/api/kiosks", async (req, res) => {
+  await cleanupExpiredPendingBookings();
+
   const schema = z.object({
     mallId: z.string().min(1),
     startDate: z.string().datetime().optional(),
@@ -426,6 +476,8 @@ app.delete("/api/admin/kiosks/:kioskId", requireAdmin, async (req, res) => {
 });
 
 app.post("/api/bookings", async (req, res) => {
+  await cleanupExpiredPendingBookings();
+
   const schema = z.object({
     kioskId: z.string().min(1),
     customerName: z.string().min(2),
@@ -503,6 +555,8 @@ app.post("/api/bookings", async (req, res) => {
 });
 
 app.post("/api/payments/checkout", async (req, res) => {
+  await cleanupExpiredPendingBookings();
+
   const schema = z.object({ bookingId: z.string().min(1) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -516,6 +570,15 @@ app.post("/api/payments/checkout", async (req, res) => {
   if (!booking) {
     return res.status(404).json({ error: "Booking not found" });
   }
+
+  if (booking.expiresAt && booking.expiresAt <= new Date()) {
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: BookingStatus.CANCELLED }
+    });
+    return res.status(409).json({ error: "Booking payment window expired" });
+  }
+
   if (booking.status !== BookingStatus.PENDING_PAYMENT) {
     return res.status(409).json({ error: "Booking not eligible for payment" });
   }
