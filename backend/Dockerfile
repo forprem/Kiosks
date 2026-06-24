@@ -6,8 +6,7 @@ RUN apk add --no-cache openssl
 
 COPY package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
-
-COPY . .
+RUN npm rebuild @prisma/client
 
 RUN npm run prisma:generate
 RUN npm run build
