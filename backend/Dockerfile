@@ -9,6 +9,9 @@ RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --i
 RUN npm rebuild @prisma/client
 
 COPY . .
+COPY prisma ./prisma
+COPY src ./src
+COPY tsconfig.json ./tsconfig.json
 
 RUN node ./node_modules/prisma/build/index.js generate --schema=./prisma/schema.prisma
 RUN npm run build
