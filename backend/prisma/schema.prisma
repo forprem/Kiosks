@@ -45,6 +45,7 @@ model Kiosk {
   mapX          Float
   mapY          Float
   pricePerYear  Int
+  pricePerDay   Int         @default(0)
   status        KioskStatus @default(AVAILABLE)
   activeFrom    DateTime?
   activeUntil   DateTime?
@@ -79,6 +80,8 @@ model Booking {
   startDate      DateTime
   endDate        DateTime
   yearlyPrice    Int
+  totalPrice     Int           @default(0)
+  expiresAt      DateTime?
   status         BookingStatus @default(PENDING_PAYMENT)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
