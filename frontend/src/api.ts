@@ -22,6 +22,7 @@ export type Kiosk = {
   code: string;
   mapX: number;
   mapY: number;
+  pricePerDay: number;
   pricePerYear: number;
   status: "AVAILABLE" | "BOOKED" | "INACTIVE";
   images: KioskImage[];
@@ -34,6 +35,7 @@ export type Booking = {
   customerEmail: string;
   startDate: string;
   endDate: string;
+  totalPrice: number;
   yearlyPrice: number;
   status: "PENDING_PAYMENT" | "CONFIRMED" | "CANCELLED";
 };
@@ -58,8 +60,13 @@ export async function getMalls(): Promise<Mall[]> {
   return parseJson<Mall[]>(response);
 }
 
-export async function getKiosks(mallId: string): Promise<Kiosk[]> {
-  const response = await fetch(`${API_BASE_URL}/api/kiosks?mallId=${encodeURIComponent(mallId)}`);
+export async function getKiosks(mallId: string, dateRange?: { startDate: string; endDate: string }): Promise<Kiosk[]> {
+  const params = new URLSearchParams({ mallId });
+  if (dateRange) {
+    params.set("startDate", dateRange.startDate);
+    params.set("endDate", dateRange.endDate);
+  }
+  const response = await fetch(`${API_BASE_URL}/api/kiosks?${params.toString()}`);
   return parseJson<Kiosk[]>(response);
 }
 
@@ -68,6 +75,7 @@ export async function createBooking(payload: {
   customerName: string;
   customerEmail: string;
   startDate: string;
+  endDate: string;
 }): Promise<Booking> {
   const response = await fetch(`${API_BASE_URL}/api/bookings`, {
     method: "POST",
@@ -114,7 +122,7 @@ export async function adminCreateKiosk(
     code: string;
     mapX: number;
     mapY: number;
-    pricePerYear: number;
+    pricePerDay: number;
     status: "AVAILABLE" | "BOOKED" | "INACTIVE";
     imageUrls?: string[];
   }
@@ -133,7 +141,7 @@ export async function adminUpdateKiosk(
   payload: {
     mapX?: number;
     mapY?: number;
-    pricePerYear?: number;
+    pricePerDay?: number;
     status?: "AVAILABLE" | "BOOKED" | "INACTIVE";
     imageUrls?: string[];
   }
