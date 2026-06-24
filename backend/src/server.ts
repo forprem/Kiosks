@@ -77,13 +77,7 @@ async function stripeWebhookHandler(req: express.Request, res: express.Response)
         console.log("Updating booking", bookingId, "to CONFIRMED");
         await prisma.booking.update({
           where: { id: bookingId },
-          data: { status: BookingStatus.CONFIRMED }
-        });
-
-        console.log("Updating kiosk", booking.kioskId, "to BOOKED");
-        await prisma.kiosk.update({
-          where: { id: booking.kioskId },
-          data: { status: KioskStatus.BOOKED }
+          data: { status: BookingStatus.CONFIRMED, expiresAt: null }
         });
 
         console.log("✓ Webhook processed successfully");
@@ -169,10 +163,28 @@ app.patch("/api/admin/malls/:mallId", requireAdmin, async (req, res) => {
 });
 
 app.get("/api/kiosks", async (req, res) => {
-  const schema = z.object({ mallId: z.string().min(1) });
+  const schema = z.object({
+    mallId: z.string().min(1),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional()
+  });
   const parsed = schema.safeParse(req.query);
   if (!parsed.success) {
     return res.status(400).json({ error: "mallId query parameter is required" });
+  }
+
+  if ((parsed.data.startDate && !parsed.data.endDate) || (!parsed.data.startDate && parsed.data.endDate)) {
+    return res.status(400).json({ error: "Provide both startDate and endDate for availability checks" });
+  }
+
+  let rangeStart: Date | null = null;
+  let rangeEnd: Date | null = null;
+  if (parsed.data.startDate && parsed.data.endDate) {
+    rangeStart = new Date(parsed.data.startDate);
+    rangeEnd = new Date(parsed.data.endDate);
+    if (Number.isNaN(rangeStart.getTime()) || Number.isNaN(rangeEnd.getTime()) || rangeStart >= rangeEnd) {
+      return res.status(400).json({ error: "Invalid date range" });
+    }
   }
 
   const kiosks = await prisma.kiosk.findMany({
@@ -184,7 +196,43 @@ app.get("/api/kiosks", async (req, res) => {
     },
     orderBy: { code: "asc" }
   });
-  return res.json(kiosks);
+
+  if (!rangeStart || !rangeEnd) {
+    return res.json(kiosks);
+  }
+
+  const now = new Date();
+  const activeBookings = await prisma.booking.findMany({
+    where: {
+      kioskId: { in: kiosks.map((kiosk) => kiosk.id) },
+      OR: [
+        { status: BookingStatus.CONFIRMED },
+        {
+          status: BookingStatus.PENDING_PAYMENT,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]
+        }
+      ]
+    },
+    select: { kioskId: true, startDate: true, endDate: true }
+  });
+
+  const kiosksWithAvailability = kiosks.map((kiosk) => {
+    if (kiosk.status === KioskStatus.INACTIVE) {
+      return kiosk;
+    }
+
+    const hasConflict = activeBookings.some(
+      (booking) =>
+        booking.kioskId === kiosk.id && hasDateOverlap(rangeStart as Date, rangeEnd as Date, booking.startDate, booking.endDate)
+    );
+
+    return {
+      ...kiosk,
+      status: hasConflict ? KioskStatus.BOOKED : KioskStatus.AVAILABLE
+    };
+  });
+
+  return res.json(kiosksWithAvailability);
 });
 
 app.post("/api/admin/kiosks", requireAdmin, async (req, res) => {
@@ -194,7 +242,8 @@ app.post("/api/admin/kiosks", requireAdmin, async (req, res) => {
     mapX: z.number().min(0).max(100),
     mapY: z.number().min(0).max(100),
     sizeSqm: z.number().positive().optional(),
-    pricePerYear: z.number().int().positive(),
+    pricePerDay: z.number().int().positive(),
+    pricePerYear: z.number().int().positive().optional(),
     status: z.nativeEnum(KioskStatus).optional(),
     imageUrls: z.array(z.string().url()).optional()
   });
@@ -211,7 +260,8 @@ app.post("/api/admin/kiosks", requireAdmin, async (req, res) => {
       mapX: parsed.data.mapX,
       mapY: parsed.data.mapY,
       sizeSqm: parsed.data.sizeSqm,
-      pricePerYear: parsed.data.pricePerYear,
+      pricePerDay: parsed.data.pricePerDay,
+      pricePerYear: parsed.data.pricePerYear ?? parsed.data.pricePerDay * 365,
       status: parsed.data.status ?? KioskStatus.AVAILABLE,
       ...(parsed.data.imageUrls && parsed.data.imageUrls.length > 0
         ? {
@@ -240,6 +290,7 @@ app.patch("/api/admin/kiosks/:kioskId", requireAdmin, async (req, res) => {
     mapY: z.number().min(0).max(100).optional(),
     sizeSqm: z.number().positive().nullable().optional(),
     pricePerYear: z.number().int().positive().optional(),
+    pricePerDay: z.number().int().positive().optional(),
     status: z.nativeEnum(KioskStatus).optional(),
     imageUrls: z.array(z.string().url()).optional()
   });
@@ -379,7 +430,8 @@ app.post("/api/bookings", async (req, res) => {
     kioskId: z.string().min(1),
     customerName: z.string().min(2),
     customerEmail: z.string().email(),
-    startDate: z.string().datetime()
+    startDate: z.string().datetime(),
+    endDate: z.string().datetime().optional()
   });
 
   const parsed = schema.safeParse(req.body);
@@ -399,12 +451,31 @@ app.post("/api/bookings", async (req, res) => {
   if (Number.isNaN(start.getTime())) {
     return res.status(400).json({ error: "Invalid startDate" });
   }
-  const end = addOneYear(start);
+  const end = parsed.data.endDate ? new Date(parsed.data.endDate) : addOneYear(start);
+  if (Number.isNaN(end.getTime()) || end <= start) {
+    return res.status(400).json({ error: "Invalid endDate" });
+  }
 
+  const dayCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  if (dayCount <= 0) {
+    return res.status(400).json({ error: "Booking must be at least 1 day" });
+  }
+
+  const effectivePricePerDay = kiosk.pricePerDay > 0 ? kiosk.pricePerDay : Math.max(1, Math.floor(kiosk.pricePerYear / 365));
+  const totalPrice = dayCount * effectivePricePerDay;
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+  const now = new Date();
   const activeBookings = await prisma.booking.findMany({
     where: {
       kioskId: parsed.data.kioskId,
-      status: { in: [BookingStatus.PENDING_PAYMENT, BookingStatus.CONFIRMED] }
+      OR: [
+        { status: BookingStatus.CONFIRMED },
+        {
+          status: BookingStatus.PENDING_PAYMENT,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]
+        }
+      ]
     }
   });
 
@@ -421,7 +492,9 @@ app.post("/api/bookings", async (req, res) => {
       customerEmail: parsed.data.customerEmail,
       startDate: start,
       endDate: end,
-      yearlyPrice: kiosk.pricePerYear,
+      yearlyPrice: totalPrice,
+      totalPrice,
+      expiresAt,
       status: BookingStatus.PENDING_PAYMENT
     }
   });
@@ -447,11 +520,13 @@ app.post("/api/payments/checkout", async (req, res) => {
     return res.status(409).json({ error: "Booking not eligible for payment" });
   }
 
+  const amountToCharge = booking.totalPrice > 0 ? booking.totalPrice : booking.yearlyPrice;
+
   if (!stripe) {
     const mockPayment = await prisma.payment.create({
       data: {
         bookingId: booking.id,
-        amount: booking.yearlyPrice,
+        amount: amountToCharge,
         currency: "usd",
         provider: "mock",
         status: PaymentStatus.PENDING,
@@ -481,9 +556,9 @@ app.post("/api/payments/checkout", async (req, res) => {
           currency: "usd",
           product_data: {
             name: `Kiosk ${booking.kiosk.code} booking`,
-            description: "1-year kiosk rental"
+            description: `${booking.startDate.toISOString().slice(0, 10)} to ${booking.endDate.toISOString().slice(0, 10)}`
           },
-          unit_amount: booking.yearlyPrice * 100
+          unit_amount: amountToCharge * 100
         }
       }
     ],
@@ -493,7 +568,7 @@ app.post("/api/payments/checkout", async (req, res) => {
   const payment = await prisma.payment.create({
     data: {
       bookingId: booking.id,
-      amount: booking.yearlyPrice,
+      amount: amountToCharge,
       currency: "usd",
       provider: "stripe",
       status: PaymentStatus.PENDING,
@@ -518,12 +593,7 @@ app.post("/api/payments/mock-confirm", async (req, res) => {
 
   await prisma.booking.update({
     where: { id: payment.bookingId },
-    data: { status: BookingStatus.CONFIRMED }
-  });
-
-  await prisma.kiosk.update({
-    where: { id: (await prisma.booking.findUniqueOrThrow({ where: { id: payment.bookingId } })).kioskId },
-    data: { status: KioskStatus.BOOKED }
+    data: { status: BookingStatus.CONFIRMED, expiresAt: null }
   });
 
   return res.json({ ok: true });
