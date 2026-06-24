@@ -17,6 +17,10 @@ import {
 type ViewMode = "customer" | "admin";
 
 export default function App() {
+  const defaultStart = new Date();
+  const defaultEnd = new Date();
+  defaultEnd.setDate(defaultEnd.getDate() + 7);
+
   const [mode, setMode] = useState<ViewMode>("customer");
   const [malls, setMalls] = useState<Mall[]>([]);
   const [selectedMallId, setSelectedMallId] = useState<string>("");
@@ -24,7 +28,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const [customerEmail, setCustomerEmail] = useState<string>("");
-  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState<string>(() => defaultStart.toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState<string>(() => defaultEnd.toISOString().slice(0, 10));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>("");
 
@@ -33,7 +38,7 @@ export default function App() {
   const [newMallCity, setNewMallCity] = useState<string>("");
   const [newMallMapImageUrl, setNewMallMapImageUrl] = useState<string>("");
   const [newKioskCode, setNewKioskCode] = useState<string>("");
-  const [newKioskPrice, setNewKioskPrice] = useState<number>(12000);
+  const [newKioskPrice, setNewKioskPrice] = useState<number>(80);
   const [newKioskX, setNewKioskX] = useState<number>(50);
   const [newKioskY, setNewKioskY] = useState<number>(50);
   const [newKioskStatus, setNewKioskStatus] = useState<Kiosk["status"]>("AVAILABLE");
@@ -48,8 +53,8 @@ export default function App() {
     }
   }
 
-  async function loadKiosks(mallId: string) {
-    const data = await getKiosks(mallId);
+  async function loadKiosks(mallId: string, range?: { startDate: string; endDate: string }) {
+    const data = await getKiosks(mallId, range);
     const normalized = data.map((kiosk) => ({ ...kiosk, images: kiosk.images ?? [] }));
     setKiosks(normalized);
     if (normalized.length > 0) {
@@ -75,12 +80,15 @@ export default function App() {
     }
     void (async () => {
       try {
-        await loadKiosks(selectedMallId);
+        await loadKiosks(selectedMallId, {
+          startDate: new Date(`${startDate}T00:00:00.000Z`).toISOString(),
+          endDate: new Date(`${endDate}T00:00:00.000Z`).toISOString()
+        });
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "Failed to load kiosks");
       }
     })();
-  }, [selectedMallId]);
+  }, [selectedMallId, startDate, endDate]);
 
   const selected = useMemo(
     () => kiosks.find((k) => k.id === selectedId) ?? kiosks[0],
@@ -91,6 +99,13 @@ export default function App() {
     () => malls.find((mall) => mall.id === selectedMallId) ?? null,
     [malls, selectedMallId]
   );
+
+  const bookingDays = useMemo(() => {
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    const end = new Date(`${endDate}T00:00:00.000Z`);
+    const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  }, [startDate, endDate]);
 
   useEffect(() => {
     if (!selected) {
@@ -118,14 +133,18 @@ export default function App() {
         kioskId: selected.id,
         customerName,
         customerEmail,
-        startDate: new Date(startDate).toISOString()
+        startDate: new Date(`${startDate}T00:00:00.000Z`).toISOString(),
+        endDate: new Date(`${endDate}T00:00:00.000Z`).toISOString()
       });
 
       const checkout = await createCheckout(booking.id);
       if (checkout.mode === "mock" && checkout.paymentId) {
         await confirmMockPayment(checkout.paymentId);
         setNotice("Booking confirmed with mock payment. Stripe can be enabled later.");
-        await loadKiosks(selected.mallId);
+        await loadKiosks(selected.mallId, {
+          startDate: new Date(`${startDate}T00:00:00.000Z`).toISOString(),
+          endDate: new Date(`${endDate}T00:00:00.000Z`).toISOString()
+        });
       } else if (checkout.checkoutUrl) {
         window.location.href = checkout.checkoutUrl;
       }
@@ -166,7 +185,7 @@ export default function App() {
         code: newKioskCode,
         mapX: newKioskX,
         mapY: newKioskY,
-        pricePerYear: newKioskPrice,
+        pricePerDay: newKioskPrice,
         status: newKioskStatus,
         imageUrls: parseImageUrls(newKioskImageUrlsInput)
       });
@@ -188,7 +207,7 @@ export default function App() {
       await adminUpdateKiosk(adminToken, selected.id, {
         mapX: selected.mapX,
         mapY: selected.mapY,
-        pricePerYear: selected.pricePerYear,
+        pricePerDay: selected.pricePerDay,
         status: selected.status,
         imageUrls: parseImageUrls(selectedKioskImageUrlsInput)
       });
@@ -240,8 +259,8 @@ export default function App() {
     <div className="page">
       <header className="hero">
         <p className="eyebrow">Mall Leasing Platform</p>
-        <h1>Book A Mall Kiosk For 1 Year</h1>
-        <p>Select a kiosk on the map, view yearly price, and proceed to online payment.</p>
+        <h1>Book A Mall Kiosk For Custom Dates</h1>
+        <p>Select a kiosk, choose your date range, and proceed to online payment.</p>
         <div className="modeSwitch" role="tablist" aria-label="View mode">
           <button className={mode === "customer" ? "tab active" : "tab"} onClick={() => setMode("customer")}>
             Customer
@@ -305,8 +324,10 @@ export default function App() {
                   <dd>{selected.code}</dd>
                   <dt>Status</dt>
                   <dd className={selected.status.toLowerCase()}>{selected.status}</dd>
-                  <dt>Price (1 year)</dt>
-                  <dd>${selected.pricePerYear.toLocaleString()}</dd>
+                  <dt>Price (per day)</dt>
+                  <dd>${selected.pricePerDay.toLocaleString()}</dd>
+                  <dt>Estimated Total</dt>
+                  <dd>{bookingDays > 0 ? `$${(bookingDays * selected.pricePerDay).toLocaleString()}` : "Select valid dates"}</dd>
                 </dl>
 
                 {selected.images.length > 0 ? (
@@ -345,6 +366,14 @@ export default function App() {
                       onChange={(event) => setStartDate(event.target.value)}
                     />
                   </label>
+                  <label>
+                    End Date
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(event) => setEndDate(event.target.value)}
+                    />
+                  </label>
                 </div>
 
                 <button
@@ -352,6 +381,7 @@ export default function App() {
                   disabled={
                     isSubmitting ||
                     selected.status !== "AVAILABLE" ||
+                    bookingDays <= 0 ||
                     customerName.trim().length < 2 ||
                     customerEmail.trim().length < 5
                   }
@@ -423,7 +453,7 @@ export default function App() {
                 <input value={newKioskCode} onChange={(event) => setNewKioskCode(event.target.value)} />
               </label>
               <label>
-                Yearly Price
+                Price Per Day
                 <input
                   type="number"
                   min={1}
@@ -485,12 +515,12 @@ export default function App() {
               <>
                 <div className="formGrid">
                   <label>
-                    Price
+                    Price Per Day
                     <input
                       type="number"
                       min={1}
-                      value={selected.pricePerYear}
-                      onChange={(event) => updateSelectedLocal({ pricePerYear: Number(event.target.value) })}
+                      value={selected.pricePerDay}
+                      onChange={(event) => updateSelectedLocal({ pricePerDay: Number(event.target.value) })}
                     />
                   </label>
                   <label>
@@ -578,7 +608,7 @@ export default function App() {
                 {kiosks.map((kiosk) => (
                   <div key={kiosk.id} className="listItem">
                     <div className="itemInfo">
-                      <strong>{kiosk.code}</strong> - ${kiosk.pricePerYear.toLocaleString()} - {kiosk.status}
+                      <strong>{kiosk.code}</strong> - ${kiosk.pricePerDay.toLocaleString()}/day - {kiosk.status}
                     </div>
                     <button
                       className="deleteBtn"
