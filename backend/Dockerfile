@@ -8,6 +8,8 @@ COPY package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
 RUN npm rebuild @prisma/client
 
+COPY . .
+
 RUN npm run prisma:generate
 RUN npm run build
 
