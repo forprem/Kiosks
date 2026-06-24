@@ -10,7 +10,7 @@ RUN npm rebuild @prisma/client
 
 COPY . .
 
-RUN npm run prisma:generate
+RUN node ./node_modules/prisma/build/index.js generate --schema=./prisma/schema.prisma
 RUN npm run build
 
 FROM node:20-alpine
