@@ -45,6 +45,19 @@ export default function App() {
   const [newKioskImageUrlsInput, setNewKioskImageUrlsInput] = useState<string>("");
   const [selectedKioskImageUrlsInput, setSelectedKioskImageUrlsInput] = useState<string>("");
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
+  const [adminMapMode, setAdminMapMode] = useState<"create" | "edit" | null>(null);
+
+  function handleAdminMapClick(event: React.MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
+    if (adminMapMode === "create") {
+      setNewKioskX(x);
+      setNewKioskY(y);
+    } else if (adminMapMode === "edit") {
+      updateSelectedLocal({ mapX: x, mapY: y });
+    }
+  }
 
   async function loadMalls() {
     const data = await getMalls();
@@ -481,24 +494,8 @@ export default function App() {
                 />
               </label>
               <label>
-                Map X (%): {newKioskX}
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={newKioskX}
-                  onChange={(event) => setNewKioskX(Number(event.target.value))}
-                />
-              </label>
-              <label>
-                Map Y (%): {newKioskY}
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={newKioskY}
-                  onChange={(event) => setNewKioskY(Number(event.target.value))}
-                />
+                Map Position
+                <span className="note">Click on the map below to set pin position (X: {newKioskX}%, Y: {newKioskY}%)</span>
               </label>
               <label>
                 Status
@@ -516,6 +513,23 @@ export default function App() {
                   placeholder={"https://.../photo1.jpg\nhttps://.../photo2.jpg"}
                 />
               </label>
+            </div>
+            <div
+              className={`adminMapPreview ${selectedMall?.mapImageUrl ? "hasMapImage" : ""} ${adminMapMode === "create" ? "picking" : ""}`}
+              style={selectedMall?.mapImageUrl ? { backgroundImage: `url(${selectedMall.mapImageUrl})` } : undefined}
+              onClick={handleAdminMapClick}
+              onMouseEnter={() => setAdminMapMode("create")}
+              onMouseLeave={() => setAdminMapMode(null)}
+              title="Click to place kiosk pin"
+            >
+              <button
+                className="pin available"
+                style={{ left: `${newKioskX}%`, top: `${newKioskY}%` }}
+                tabIndex={-1}
+              >
+                {newKioskCode || "?"}
+              </button>
+              <span className="adminMapHint">{adminMapMode === "create" ? "Click to place pin" : "Hover to place pin"}</span>
             </div>
             <button
               className="cta"
@@ -543,24 +557,8 @@ export default function App() {
                     />
                   </label>
                   <label>
-                    X (%): {selected.mapX}
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={selected.mapX}
-                      onChange={(event) => updateSelectedLocal({ mapX: Number(event.target.value) })}
-                    />
-                  </label>
-                  <label>
-                    Y (%): {selected.mapY}
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={selected.mapY}
-                      onChange={(event) => updateSelectedLocal({ mapY: Number(event.target.value) })}
-                    />
+                    Map Position
+                    <span className="note">Click on the map below to move pin (X: {selected.mapX}%, Y: {selected.mapY}%)</span>
                   </label>
                   <label>
                     Status
@@ -581,6 +579,23 @@ export default function App() {
                       placeholder={"https://.../photo1.jpg\nhttps://.../photo2.jpg"}
                     />
                   </label>
+                </div>
+                <div
+                  className={`adminMapPreview ${selectedMall?.mapImageUrl ? "hasMapImage" : ""} ${adminMapMode === "edit" ? "picking" : ""}`}
+                  style={selectedMall?.mapImageUrl ? { backgroundImage: `url(${selectedMall.mapImageUrl})` } : undefined}
+                  onClick={handleAdminMapClick}
+                  onMouseEnter={() => setAdminMapMode("edit")}
+                  onMouseLeave={() => setAdminMapMode(null)}
+                  title="Click to move kiosk pin"
+                >
+                  <button
+                    className={`pin ${selected.status.toLowerCase()}`}
+                    style={{ left: `${selected.mapX}%`, top: `${selected.mapY}%` }}
+                    tabIndex={-1}
+                  >
+                    {selected.code}
+                  </button>
+                  <span className="adminMapHint">{adminMapMode === "edit" ? "Click to move pin" : "Hover to move pin"}</span>
                 </div>
                 <button
                   className="cta"
