@@ -271,6 +271,48 @@ dd.inactive {
   transform: scale(1.2);
 }
 
+.adminMapPreview {
+  position: relative;
+  margin-top: 8px;
+  width: 100%;
+  min-height: 200px;
+  border-radius: 14px;
+  border: 2px dashed #a2b5c7;
+  background: linear-gradient(160deg, #f7f4ea, #f1f7ff 45%, #edf9f1);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.adminMapPreview.hasMapImage {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-style: solid;
+}
+
+.adminMapPreview.picking {
+  border-color: #0b6ef6;
+  cursor: crosshair;
+}
+
+.adminMapPreview .pin {
+  pointer-events: none;
+}
+
+.adminMapHint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .listContainer {
   margin-top: 10px;
   display: flex;
