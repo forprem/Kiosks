@@ -4,6 +4,331 @@
   background: radial-gradient(circle at 10% 10%, #fef6e4, #f0f7ff 38%, #e2f4ec 100%);
 }
 
+/* ═══════════════════════════════════════════
+   LANDING PAGE
+═══════════════════════════════════════════ */
+
+.landingPage {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 40%, #0a2744 70%, #0e1f3d 100%);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* decorative blobs */
+.blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(80px);
+  opacity: 0.18;
+  pointer-events: none;
+}
+.blob1 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #3b82f6, transparent);
+  top: -160px;
+  left: -160px;
+}
+.blob2 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #8b5cf6, transparent);
+  bottom: -120px;
+  right: -100px;
+}
+.blob3 {
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, #06b6d4, transparent);
+  top: 40%;
+  left: 42%;
+}
+
+.landingInner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+/* hero row */
+.landingHero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+
+/* LEFT */
+.landingLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.landingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.landingHeadline {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #f0f6ff;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.landingAccent {
+  background: linear-gradient(90deg, #60a5fa, #a78bfa, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landingSubtitle {
+  font-size: 16px;
+  color: #94a3b8;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 440px;
+}
+
+.landingFeatures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.landingFeatureItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.featureIcon {
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* RIGHT — image frame */
+.landingRight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.landingImageFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 32px 64px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(59, 130, 246, 0.12);
+}
+
+.landingImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.5s ease;
+}
+
+.landingImage.fadeIn  { opacity: 1; }
+.landingImage.fadeOut { opacity: 0; }
+
+.imageOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10,15,30,0.55) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.imageCounter {
+  position: absolute;
+  bottom: 14px;
+  right: 16px;
+  background: rgba(0,0,0,0.55);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.landingDots {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.landingDot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.25);
+  cursor: pointer;
+  transition: background 0.25s, transform 0.25s;
+}
+
+.landingDot:hover { transform: scale(1.25); }
+
+.landingDot.active {
+  background: #60a5fa;
+  transform: scale(1.3);
+  box-shadow: 0 0 8px rgba(96,165,250,0.7);
+}
+
+/* CTA section */
+.landingCtaSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.ctaDivider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.ctaDividerLine {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+}
+
+.ctaDividerText {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.landingCtaButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 48px;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 0 0 0 rgba(96,165,250,0),
+    0 8px 32px rgba(37, 99, 235, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+}
+
+.landingCtaButton:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 0 40px rgba(96, 165, 250, 0.45),
+    0 16px 40px rgba(37, 99, 235, 0.5);
+}
+
+.landingCtaButton:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.ctaGlow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.ctaLabel {
+  position: relative;
+  z-index: 1;
+}
+
+.ctaArrow {
+  position: relative;
+  z-index: 1;
+  font-size: 20px;
+  transition: transform 0.2s ease;
+}
+
+.landingCtaButton:hover .ctaArrow {
+  transform: translateX(5px);
+}
+
+.ctaNote {
+  color: #475569;
+  font-size: 13px;
+  margin: 0;
+}
+
+@media (max-width: 800px) {
+  .landingHero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .landingHeadline {
+    font-size: clamp(1.8rem, 6vw, 2.6rem);
+  }
+  .landingCtaButton {
+    font-size: 16px;
+    padding: 15px 32px;
+  }
+}
+/* ═══════════════════════════════════════════ */
+
 * {
   box-sizing: border-box;
 }
@@ -46,10 +371,15 @@ body {
 }
 
 .mallSelect {
-  margin-top: 12px;
+  margin-top: 18px;
   display: inline-flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid #d0daea;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
 }
 
 .mallSelect select {
