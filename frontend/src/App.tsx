@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import LandingPage from "./LandingPage";
 import {
   adminCreateKiosk,
   adminCreateMall,
@@ -22,6 +23,7 @@ export default function App() {
   defaultEnd.setDate(defaultEnd.getDate() + 7);
 
   const [mode, setMode] = useState<ViewMode>("customer");
+  const [showLanding, setShowLanding] = useState(true);
   const [malls, setMalls] = useState<Mall[]>([]);
   const [selectedMallId, setSelectedMallId] = useState<string>("");
   const [kiosks, setKiosks] = useState<Kiosk[]>([]);
@@ -275,6 +277,10 @@ export default function App() {
 
   return (
     <div className="page">
+      {showLanding ? (
+        <LandingPage onStart={() => setShowLanding(false)} />
+      ) : (
+      <>
       <header className="hero">
         <p className="eyebrow">Mall Leasing Platform</p>
         <h1>Book A Mall Kiosk For Custom Dates</h1>
@@ -660,6 +666,8 @@ export default function App() {
 
           {notice ? <p className="message">{notice}</p> : null}
         </main>
+      )}
+      </>
       )}
     </div>
   );
