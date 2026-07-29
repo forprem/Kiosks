@@ -370,8 +370,17 @@ body {
   color: #fff;
 }
 
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
 .mallSelect {
-  margin-top: 18px;
+  margin-top: 0;
   display: inline-flex;
   gap: 12px;
   align-items: center;
@@ -425,7 +434,7 @@ h1 {
   position: relative;
   margin-top: 10px;
   width: 100%;
-  min-height: 420px;
+  min-height: 520px;
   border-radius: 14px;
   border: 1px dashed #a2b5c7;
   background: linear-gradient(160deg, #f7f4ea, #f1f7ff 45%, #edf9f1);
@@ -567,11 +576,13 @@ dd.inactive {
   min-height: 260px;
 }
 
-.photoStage img {
+..photoStage img {
   width: 100%;
   height: 260px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   display: block;
+  background: #f8fbff;
 }
 
 .photoDots {
