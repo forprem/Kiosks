@@ -413,8 +413,12 @@ h1 {
 
 .layout {
   display: grid;
-  grid-template-columns: 1.7fr 1fr;
+  grid-template-columns: minmax(520px, 2.2fr) 1fr;
   gap: 16px;
+}
+
+.mapCard {
+  min-width: 520px;
 }
 
 .adminLayout {
