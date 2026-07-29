@@ -450,7 +450,7 @@ h1 {
 }
 
 .mapArea.hasMapImage {
-  background-size: cover;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
 }
@@ -577,7 +577,7 @@ dd.inactive {
   margin-top: 12px;
 }
 
-.photoStage {
+..photoStage {
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid #d7e0ea;
@@ -585,9 +585,9 @@ dd.inactive {
   min-height: 260px;
 }
 
-..photoStage img {
+.photoStage img {
   width: 100%;
-  height: 260px;
+  height: 100%;
   object-fit: contain;
   object-position: center;
   display: block;
