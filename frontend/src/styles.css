@@ -427,7 +427,7 @@ h1 {
 }
 
 .adminLayout {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.3fr 1fr;
 }
 
 .mapCard,
@@ -439,7 +439,8 @@ h1 {
   backdrop-filter: blur(4px);
 }
 
-.mapArea {
+.mapArea,
+.adminMapPreview {
   position: relative;
   margin-top: 10px;
   width: 100%;
@@ -447,12 +448,24 @@ h1 {
   border-radius: 14px;
   border: 1px dashed #a2b5c7;
   background: linear-gradient(160deg, #f7f4ea, #f1f7ff 45%, #edf9f1);
-}
-
-.mapArea.hasMapImage {
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.mapArea.hasMapImage,
+.adminMapPreview.hasMapImage {
+  background-image: inherit;
+}
+
+.adminMapPreview {
+  margin-top: 10px;
+  min-height: 520px;
+}
+
+.adminMapPreview.hasMapImage {
+  border-style: solid;
 }
 
 .pin {
@@ -577,12 +590,14 @@ dd.inactive {
   margin-top: 12px;
 }
 
-..photoStage {
+.photoStage {
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid #d7e0ea;
   background: linear-gradient(180deg, #f8fbff, #eef4fa);
+  aspect-ratio: 16 / 9;
   min-height: 260px;
+  max-height: 360px;
 }
 
 .photoStage img {
