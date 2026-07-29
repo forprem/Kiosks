@@ -285,27 +285,29 @@ export default function App() {
         <p className="eyebrow">Mall Leasing Platform</p>
         <h1>Book A Mall Kiosk For Custom Dates</h1>
         <p>Select a kiosk, choose your date range, and proceed to online payment.</p>
-        <div className="modeSwitch" role="tablist" aria-label="View mode">
-          <button className={mode === "customer" ? "tab active" : "tab"} onClick={() => setMode("customer")}>
-            Customer
-          </button>
-          <button className={mode === "admin" ? "tab active" : "tab"} onClick={() => setMode("admin")}>
-            Admin
-          </button>
-        </div>
-        <div className="mallSelect">
-          <label htmlFor="mall-select">Mall</label>
-          <select
-            id="mall-select"
-            value={selectedMallId}
-            onChange={(event) => setSelectedMallId(event.target.value)}
-          >
-            {malls.map((mall) => (
-              <option key={mall.id} value={mall.id}>
-                {mall.name} ({mall.city})
-              </option>
-            ))}
-          </select>
+<div className="heroActions">
+          <div className="modeSwitch" role="tablist" aria-label="View mode">
+            <button className={mode === "customer" ? "tab active" : "tab"} onClick={() => setMode("customer")}> 
+              Customer
+            </button>
+            <button className={mode === "admin" ? "tab active" : "tab"} onClick={() => setMode("admin")}> 
+              Admin
+            </button>
+          </div>
+          <div className="mallSelect">
+            <label htmlFor="mall-select">Mall</label>
+            <select
+              id="mall-select"
+              value={selectedMallId}
+              onChange={(event) => setSelectedMallId(event.target.value)}
+            >
+              {malls.map((mall) => (
+                <option key={mall.id} value={mall.id}>
+                  {mall.name} ({mall.city})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </header>
 
