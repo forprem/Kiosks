@@ -427,7 +427,7 @@ h1 {
 }
 
 .adminLayout {
-  grid-template-columns: 1.3fr 1fr;
+  grid-template-columns: minmax(540px, 1.7fr) minmax(360px, 1fr);
 }
 
 .mapCard,
